@@ -7,6 +7,8 @@ import com.example.dolarapptest.domain.usecase.GetCurrenciesUseCase
 import com.example.dolarapptest.domain.usecase.GetTickersUseCase
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiAction
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState
+import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.ExchangeInputFieldUiState
+import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.ScreenState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,30 +24,41 @@ class ExchangeViewModel @Inject constructor(
     private val getCurrenciesUseCase: GetCurrenciesUseCase,
     private val convertCurrencyUseCase: ConvertCurrencyUseCase
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(ExchangeUiState(isLoading = true))
+    private val _uiState = MutableStateFlow(ExchangeUiState(state = ScreenState.Loading))
     val uiState: StateFlow<ExchangeUiState> = _uiState.asStateFlow()
 
     init {
+        loadInitialState()
+    }
+
+    fun loadInitialState(){
         viewModelScope.launch {
-            val currenciesList = getCurrenciesUseCase().getOrNull() ?: return@launch
-            val firstTicker = getTickersUseCase(currenciesList).getOrNull()?.firstOrNull() ?: return@launch
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
+            val currenciesList = getCurrenciesUseCase().getOrElse {
+                _uiState.value = ExchangeUiState(state = ScreenState.Error())
+                return@launch
+            }
+            val firstTicker = getTickersUseCase(currenciesList).getOrElse {
+                _uiState.value = ExchangeUiState(state = ScreenState.Error())
+                return@launch
+            }.firstOrNull() ?: run {
+                _uiState.value = ExchangeUiState(state = ScreenState.Error())
+                return@launch
+            }
+            _uiState.value = ExchangeUiState(
+                state = ScreenState.Success(
                     availableCurrencies = currenciesList.toImmutableList(),
-                    topExchangeInputFieldUiState = it.topExchangeInputFieldUiState.copy(
+                    topExchangeInputFieldUiState = ExchangeInputFieldUiState(
                         isSelectable = false,
                         currency = firstTicker.from.uppercase()
                     ),
-                    bottomExchangeInputFieldUiState = it.bottomExchangeInputFieldUiState.copy(
+                    bottomExchangeInputFieldUiState = ExchangeInputFieldUiState(
                         isSelectable = true,
                         currency = firstTicker.to.uppercase()
                     )
                 )
-            }
+            )
         }
     }
-
 
     fun onAction(action: ExchangeUiAction) {
         when (action) {
@@ -59,19 +72,15 @@ class ExchangeViewModel @Inject constructor(
     }
 
     private fun onTopAmountChanged(amount: String) {
-        _uiState.update {
-            it.copy(topExchangeInputFieldUiState = it.topExchangeInputFieldUiState.copy(amount = amount))
-        }
+        updateSuccessUiState { it.copy(topExchangeInputFieldUiState = it.topExchangeInputFieldUiState.copy(amount = amount)) }
     }
 
     private fun onBottomAmountChanged(amount: String) {
-        _uiState.update {
-            it.copy(bottomExchangeInputFieldUiState = it.bottomExchangeInputFieldUiState.copy(amount = amount))
-        }
+        updateSuccessUiState { it.copy(bottomExchangeInputFieldUiState = it.bottomExchangeInputFieldUiState.copy(amount = amount)) }
     }
 
     private fun onSwap() {
-        _uiState.update {
+        updateSuccessUiState {
             it.copy(
                 topExchangeInputFieldUiState = it.bottomExchangeInputFieldUiState,
                 bottomExchangeInputFieldUiState = it.topExchangeInputFieldUiState
@@ -80,27 +89,32 @@ class ExchangeViewModel @Inject constructor(
     }
 
     private fun onShowBottomSheet() {
-        _uiState.update { it.copy(isShowBottomSheet = true) }
+        updateSuccessUiState { it.copy(isShowBottomSheet = true) }
     }
 
     private fun onHideBottomSheet() {
-        _uiState.update { it.copy(isShowBottomSheet = false) }
+        updateSuccessUiState { it.copy(isShowBottomSheet = false) }
     }
 
     private fun onCurrencySelected(currency: String) {
-        _uiState.update {
-            if (it.topExchangeInputFieldUiState.isSelectable)
-                it.copy(
-                    topExchangeInputFieldUiState = it.topExchangeInputFieldUiState.copy(currency = currency),
+        updateSuccessUiState { state ->
+            if (state.topExchangeInputFieldUiState.isSelectable)
+                state.copy(
+                    topExchangeInputFieldUiState = state.topExchangeInputFieldUiState.copy(currency = currency),
                     isShowBottomSheet = false
                 )
             else
-                it.copy(
-                    bottomExchangeInputFieldUiState = it.bottomExchangeInputFieldUiState.copy(currency = currency),
+                state.copy(
+                    bottomExchangeInputFieldUiState = state.bottomExchangeInputFieldUiState.copy(currency = currency),
                     isShowBottomSheet = false
                 )
         }
     }
 
-
+    private fun updateSuccessUiState(block: (ScreenState.Success) -> ScreenState.Success) {
+        _uiState.update { uiState ->
+            val success = uiState.state as? ScreenState.Success ?: return@update uiState
+            uiState.copy(state = block(success))
+        }
+    }
 }

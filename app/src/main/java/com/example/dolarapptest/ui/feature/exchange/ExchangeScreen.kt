@@ -43,11 +43,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.dolarapptest.ui.feature.claude.ExchangeIntentAI
-import com.example.dolarapptest.ui.feature.exchange.state.ExchangeInputFieldUiState
+import com.example.dolarapptest.ui.components.LoadingScreen
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiAction
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState
-import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.Companion.preview
+import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.ExchangeInputFieldUiState
+import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.ScreenState
+
 import com.example.dolarapptest.ui.theme.ColorBackground
 import com.example.dolarapptest.ui.theme.ColorBrandGreen
 import com.example.dolarapptest.ui.theme.ColorCard
@@ -64,32 +65,27 @@ fun ExchangeScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(containerColor = ColorBackground) { padding ->
-        if (uiState.isLoading) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .background(Color.Transparent),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = ColorBrandGreen)
+        when (val screenState = uiState.state) {
+            ScreenState.Loading ->
+                LoadingScreen(modifier = Modifier.padding(padding))
+            is ScreenState.Error -> {
+                //TODO
             }
-        } else {
-            ExchangeScreenView(
+            is ScreenState.Success -> ExchangeScreenView(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 16.dp)
                     .padding(padding),
-                uiState = uiState,
+                uiState = screenState,
                 onIntent = { viewModel.onAction(it) },
-                )
+            )
         }
     }
 }
 
 @Composable
 fun ExchangeScreenView(
-    uiState: ExchangeUiState,
+    uiState: ScreenState.Success,
     modifier: Modifier = Modifier,
     onIntent: (ExchangeUiAction) -> Unit= {},
 ) {
@@ -250,7 +246,7 @@ fun MoneyInputTextField(
     BasicTextField(
         modifier = modifier,
         value = amount,
-        onValueChange = { onAmountChanged(it.filter { c -> c.isDigit() || c == '.' }) },
+        onValueChange = { onAmountChanged(it) },
         textStyle = TextStyle(
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
@@ -383,5 +379,5 @@ private fun CurrencyCell(
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun ExchangeScreenPreview() {
-    ExchangeScreenView(uiState = preview())
+    ExchangeScreenView(uiState = ScreenState.Success.preview())
 }
