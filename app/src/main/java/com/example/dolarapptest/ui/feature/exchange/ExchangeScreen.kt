@@ -46,6 +46,7 @@ import com.example.dolarapptest.ui.components.LoadingScreen
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiIntent
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.ExchangeInputFieldUiState
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.UiState
+import com.example.dolarapptest.ui.feature.exchange.state.FieldPosition
 
 import com.example.dolarapptest.ui.theme.ColorBackground
 import com.example.dolarapptest.ui.theme.ColorBrandGreen
@@ -90,7 +91,7 @@ fun ExchangeScreenView(
     Column(modifier) {
         Spacer(Modifier.height(24.dp))
 
-        ExchangeTitleComponent()
+        ExchangeTitleComponent(exchangeRate = uiState.exchangeRate)
 
         Spacer(Modifier.height(24.dp))
 
@@ -98,13 +99,14 @@ fun ExchangeScreenView(
             onSwapClicked = { onIntent(ExchangeUiIntent.Swap) },
             topExchangeInputFieldUiState = uiState.topExchangeInputFieldUiState,
             bottomExchangeInputFieldUiState = uiState.bottomExchangeInputFieldUiState,
+            baseCurrencyField = uiState.baseCurrencyField,
             onBottomExchangeInputFieldChanged = { onIntent(ExchangeUiIntent.BottomAmountChanged(amount = it)) },
             onTopExchangeInputFieldChanged = { onIntent(ExchangeUiIntent.TopAmountChanged(amount = it)) },
             onCurrencyTapped = { onIntent(ExchangeUiIntent.ShowBottomSheet) }
         )
 
         if (uiState.isShowBottomSheet) {
-            val secondaryField = if (uiState.topExchangeInputFieldUiState.isSelectable)
+            val secondaryField = if (uiState.baseCurrencyField == FieldPosition.BOTTOM)
                 uiState.topExchangeInputFieldUiState
             else
                 uiState.bottomExchangeInputFieldUiState
@@ -120,7 +122,7 @@ fun ExchangeScreenView(
 }
 
 @Composable
-fun ExchangeTitleComponent() {
+fun ExchangeTitleComponent(exchangeRate: String) {
     Text(
         text = "Exchange",
         fontSize = 30.sp,
@@ -131,7 +133,7 @@ fun ExchangeTitleComponent() {
     Spacer(Modifier.height(8.dp))
 
     Text(
-        text = "state.rateLabel",
+        text = exchangeRate,
         fontSize = 16.sp,
         fontWeight = FontWeight.SemiBold,
         color = ColorBrandGreen,
@@ -147,19 +149,20 @@ private fun ExchangeInputComponent(
     onBottomExchangeInputFieldChanged: (String) -> Unit = {},
     topExchangeInputFieldUiState: ExchangeInputFieldUiState = ExchangeInputFieldUiState(),
     bottomExchangeInputFieldUiState: ExchangeInputFieldUiState = ExchangeInputFieldUiState(),
+    baseCurrencyField: FieldPosition = FieldPosition.TOP,
 ) {
     Box(modifier) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             MoneyInputField(
                 currency = topExchangeInputFieldUiState.currency,
-                isSelectable = topExchangeInputFieldUiState.isSelectable,
+                isSelectable = baseCurrencyField != FieldPosition.TOP,
                 amount = topExchangeInputFieldUiState.amount,
                 onAmountChanged = onTopExchangeInputFieldChanged,
                 onCurrencyTapped = onCurrencyTapped
             )
             MoneyInputField(
                 currency = bottomExchangeInputFieldUiState.currency,
-                isSelectable = bottomExchangeInputFieldUiState.isSelectable,
+                isSelectable = baseCurrencyField != FieldPosition.BOTTOM,
                 amount = bottomExchangeInputFieldUiState.amount,
                 onAmountChanged = onBottomExchangeInputFieldChanged,
                 onCurrencyTapped = onCurrencyTapped
