@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.dolarapptest.ui.components.LoadingScreen
+import com.example.dolarapptest.ui.components.OverlayLoading
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiIntent
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.ExchangeInputFieldUiState
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.UiState
@@ -64,20 +65,30 @@ fun ExchangeScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(containerColor = ColorBackground) { padding ->
+
         when (val screenState = uiState.state) {
             UiState.Loading ->
                 LoadingScreen(modifier = Modifier.padding(padding))
+
             is UiState.Error -> {
                 //TODO
             }
-            is UiState.Success -> ExchangeScreenView(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
-                    .padding(padding),
-                uiState = screenState,
-                onIntent = { viewModel.onIntent(it) },
-            )
+
+            is UiState.Success ->
+                Box {
+                    ExchangeScreenView(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp)
+                            .padding(padding),
+                        uiState = screenState,
+                        onIntent = { viewModel.onIntent(it) },
+                    )
+
+                    if (uiState.showOverlayLoader) {
+                        OverlayLoading()
+                    }
+                }
         }
     }
 }
@@ -86,7 +97,7 @@ fun ExchangeScreen(
 fun ExchangeScreenView(
     uiState: UiState.Success,
     modifier: Modifier = Modifier,
-    onIntent: (ExchangeUiIntent) -> Unit= {},
+    onIntent: (ExchangeUiIntent) -> Unit = {},
 ) {
     Column(modifier) {
         Spacer(Modifier.height(24.dp))
@@ -100,7 +111,13 @@ fun ExchangeScreenView(
             topExchangeInputFieldUiState = uiState.topExchangeInputFieldUiState,
             bottomExchangeInputFieldUiState = uiState.bottomExchangeInputFieldUiState,
             baseCurrencyField = uiState.baseCurrencyField,
-            onBottomExchangeInputFieldChanged = { onIntent(ExchangeUiIntent.BottomAmountChanged(amount = it)) },
+            onBottomExchangeInputFieldChanged = {
+                onIntent(
+                    ExchangeUiIntent.BottomAmountChanged(
+                        amount = it
+                    )
+                )
+            },
             onTopExchangeInputFieldChanged = { onIntent(ExchangeUiIntent.TopAmountChanged(amount = it)) },
             onCurrencyTapped = { onIntent(ExchangeUiIntent.ShowBottomSheet) }
         )
@@ -330,7 +347,7 @@ private fun SwapButton(
     //TODO swap focus also
     Box(
         modifier = modifier
-            .size(42.dp)
+            .size(52.dp)
             .clip(CircleShape)
             .background(ColorSeparator)
             .padding(6.dp)

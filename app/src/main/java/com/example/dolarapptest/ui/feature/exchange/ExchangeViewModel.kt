@@ -126,18 +126,55 @@ class ExchangeViewModel @Inject constructor(
     }
 
     private fun onCurrencySelected(currency: String) {
-        updateSuccessUiState { state ->
-            if (state.baseCurrencyField == FieldPosition.BOTTOM)
-                state.copy(
-                    topExchangeInputFieldUiState = state.topExchangeInputFieldUiState.copy(currency = currency),
-                    isShowBottomSheet = false
-                )
-            else
-                state.copy(
-                    bottomExchangeInputFieldUiState = state.bottomExchangeInputFieldUiState.copy(currency = currency),
-                    isShowBottomSheet = false
-                )
+        viewModelScope.launch {
+            _uiState.update { it.copy(
+                showOverlayLoader = true,
+                state = updateCurrencyInState(it.state, currency)
+            ) }
+
+            val ticker = getTickersUseCase(listOf(currency)).getOrNull()?.firstOrNull()
+
+            if (ticker != null) {
+                currentTicker = ticker
+                updateSuccessUiState { state ->
+                    recalculateAmounts(state).copy(exchangeRate = getCurrentRate(state))
+                }
+            } else {
+                // handle error
+            }
+
+            _uiState.update { it.copy(showOverlayLoader = false) }
         }
+    }
+
+    private fun updateCurrencyInState(state: UiState, currency: String): UiState {
+        val success = state as? UiState.Success ?: return state
+        return if (success.baseCurrencyField == FieldPosition.BOTTOM)
+            success.copy(
+                topExchangeInputFieldUiState = success.topExchangeInputFieldUiState.copy(currency = currency),
+                isShowBottomSheet = false
+            )
+        else
+            success.copy(
+                bottomExchangeInputFieldUiState = success.bottomExchangeInputFieldUiState.copy(currency = currency),
+                isShowBottomSheet = false
+            )
+    }
+
+    private fun recalculateAmounts(state: UiState.Success): UiState.Success {
+        val stateForConversion = state.copy(activeInputField = state.baseCurrencyField)
+        return if (state.baseCurrencyField == FieldPosition.TOP)
+            state.copy(
+                bottomExchangeInputFieldUiState = state.bottomExchangeInputFieldUiState.copy(
+                    amount = convertAmount(state.topExchangeInputFieldUiState.amount, stateForConversion)
+                )
+            )
+        else
+            state.copy(
+                topExchangeInputFieldUiState = state.topExchangeInputFieldUiState.copy(
+                    amount = convertAmount(state.bottomExchangeInputFieldUiState.amount, stateForConversion)
+                )
+            )
     }
 
     private fun getCurrentRate(state: UiState.Success): String {
