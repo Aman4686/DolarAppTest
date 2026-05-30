@@ -16,18 +16,16 @@ class TickersRepositoryImpl @Inject constructor(
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : TickersRepository {
 
-    override suspend fun getTickers(currencies: List<String>): Result<List<Ticker>> {
-        return withContext(ioDispatcher) {
+    override suspend fun getTickers(currencies: List<String>): Result<List<Ticker>> = withContext(ioDispatcher) {
             runCatching {
                 api.getTickers(currencies.joinToString(",")).map { it.toDomain() }
             }
         }
-    }
 
-    override suspend fun getAvailableCurrencies(): List<String> = withContext(ioDispatcher) {
+    override suspend fun getAvailableCurrencies(): Result<List<String>> = withContext(ioDispatcher) {
         runCatching {
             api.getAvailableCurrencies()
-        }.getOrElse {
+        }.recoverCatching {
             listOf("MXN", "ARS", "BRL", "COP")
         }
     }

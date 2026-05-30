@@ -1,10 +1,10 @@
-package com.example.dolarapptest.ui.feature.exchange
+package com.example.dolarapptest.ui.feature.claude
 
 import com.example.dolarapptest.domain.model.Ticker
 
 enum class ActiveField { TOP, BOTTOM }
 
-data class ExchangeUiState(
+data class ExchangeUiStateAI(
     val isLoading: Boolean = false,
     val error: String? = null,
     val topCurrency: String = "",
