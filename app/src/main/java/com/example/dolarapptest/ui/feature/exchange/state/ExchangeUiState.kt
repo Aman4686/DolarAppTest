@@ -4,20 +4,20 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
 data class ExchangeUiState(
-    val state: ScreenState = ScreenState.Success(),
+    val state: UiState = UiState.Success(),
     val showOverlayLoader: Boolean = false
 ){
-    sealed interface ScreenState {
-        data object Loading : ScreenState
-        data class Error(val message: String = "") : ScreenState
+    sealed interface UiState {
+        data object Loading : UiState
+        data class Error(val message: String = "") : UiState
         data class Success(
             val topExchangeInputFieldUiState: ExchangeInputFieldUiState = ExchangeInputFieldUiState(),
             val bottomExchangeInputFieldUiState: ExchangeInputFieldUiState = ExchangeInputFieldUiState(),
             val rateLabel: String = "",
             val isShowBottomSheet: Boolean = false,
             val availableCurrencies: ImmutableList<String> = persistentListOf(),
-        ) : ScreenState {
-            companion object {
+        ) : UiState {
+            companion object Companion {
                 fun preview() = Success(
                     topExchangeInputFieldUiState = ExchangeInputFieldUiState(currency = "USD", amount = "100"),
                     bottomExchangeInputFieldUiState = ExchangeInputFieldUiState(currency = "EUR", amount = "92.50"),

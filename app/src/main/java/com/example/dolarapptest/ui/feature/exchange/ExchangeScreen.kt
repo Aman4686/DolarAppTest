@@ -22,7 +22,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -44,10 +43,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.dolarapptest.ui.components.LoadingScreen
-import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiAction
-import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState
+import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiIntent
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.ExchangeInputFieldUiState
-import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.ScreenState
+import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.UiState
 
 import com.example.dolarapptest.ui.theme.ColorBackground
 import com.example.dolarapptest.ui.theme.ColorBrandGreen
@@ -66,18 +64,18 @@ fun ExchangeScreen(
 
     Scaffold(containerColor = ColorBackground) { padding ->
         when (val screenState = uiState.state) {
-            ScreenState.Loading ->
+            UiState.Loading ->
                 LoadingScreen(modifier = Modifier.padding(padding))
-            is ScreenState.Error -> {
+            is UiState.Error -> {
                 //TODO
             }
-            is ScreenState.Success -> ExchangeScreenView(
+            is UiState.Success -> ExchangeScreenView(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 16.dp)
                     .padding(padding),
                 uiState = screenState,
-                onIntent = { viewModel.onAction(it) },
+                onIntent = { viewModel.onIntent(it) },
             )
         }
     }
@@ -85,9 +83,9 @@ fun ExchangeScreen(
 
 @Composable
 fun ExchangeScreenView(
-    uiState: ScreenState.Success,
+    uiState: UiState.Success,
     modifier: Modifier = Modifier,
-    onIntent: (ExchangeUiAction) -> Unit= {},
+    onIntent: (ExchangeUiIntent) -> Unit= {},
 ) {
     Column(modifier) {
         Spacer(Modifier.height(24.dp))
@@ -97,12 +95,12 @@ fun ExchangeScreenView(
         Spacer(Modifier.height(24.dp))
 
         ExchangeInputComponent(
-            onSwapClicked = { onIntent(ExchangeUiAction.Swap) },
+            onSwapClicked = { onIntent(ExchangeUiIntent.Swap) },
             topExchangeInputFieldUiState = uiState.topExchangeInputFieldUiState,
             bottomExchangeInputFieldUiState = uiState.bottomExchangeInputFieldUiState,
-            onBottomExchangeInputFieldChanged = { onIntent(ExchangeUiAction.BottomAmountChanged(amount = it)) },
-            onTopExchangeInputFieldChanged = { onIntent(ExchangeUiAction.TopAmountChanged(amount = it)) },
-            onCurrencyTapped = { onIntent(ExchangeUiAction.ShowBottomSheet) }
+            onBottomExchangeInputFieldChanged = { onIntent(ExchangeUiIntent.BottomAmountChanged(amount = it)) },
+            onTopExchangeInputFieldChanged = { onIntent(ExchangeUiIntent.TopAmountChanged(amount = it)) },
+            onCurrencyTapped = { onIntent(ExchangeUiIntent.ShowBottomSheet) }
         )
 
         if (uiState.isShowBottomSheet) {
@@ -114,8 +112,8 @@ fun ExchangeScreenView(
             CurrencyPickerBottomSheet(
                 currencies = uiState.availableCurrencies,
                 selectedCurrency = secondaryField.currency,
-                onCurrencySelected = { onIntent(ExchangeUiAction.CurrencySelected(it)) },
-                onDismiss = { onIntent(ExchangeUiAction.HideBottomSheet) }
+                onCurrencySelected = { onIntent(ExchangeUiIntent.CurrencySelected(it)) },
+                onDismiss = { onIntent(ExchangeUiIntent.HideBottomSheet) }
             )
         }
     }
@@ -379,5 +377,5 @@ private fun CurrencyCell(
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun ExchangeScreenPreview() {
-    ExchangeScreenView(uiState = ScreenState.Success.preview())
+    ExchangeScreenView(uiState = UiState.Success.preview())
 }

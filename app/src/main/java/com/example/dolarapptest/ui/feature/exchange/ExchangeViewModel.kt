@@ -5,10 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.dolarapptest.domain.usecase.ConvertCurrencyUseCase
 import com.example.dolarapptest.domain.usecase.GetCurrenciesUseCase
 import com.example.dolarapptest.domain.usecase.GetTickersUseCase
-import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiAction
+import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiIntent
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.ExchangeInputFieldUiState
-import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.ScreenState
+import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,7 +24,7 @@ class ExchangeViewModel @Inject constructor(
     private val getCurrenciesUseCase: GetCurrenciesUseCase,
     private val convertCurrencyUseCase: ConvertCurrencyUseCase
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(ExchangeUiState(state = ScreenState.Loading))
+    private val _uiState = MutableStateFlow(ExchangeUiState(state = UiState.Loading))
     val uiState: StateFlow<ExchangeUiState> = _uiState.asStateFlow()
 
     init {
@@ -34,18 +34,18 @@ class ExchangeViewModel @Inject constructor(
     fun loadInitialState(){
         viewModelScope.launch {
             val currenciesList = getCurrenciesUseCase().getOrElse {
-                _uiState.value = ExchangeUiState(state = ScreenState.Error())
+                _uiState.value = ExchangeUiState(state = UiState.Error())
                 return@launch
             }
             val firstTicker = getTickersUseCase(currenciesList).getOrElse {
-                _uiState.value = ExchangeUiState(state = ScreenState.Error())
+                _uiState.value = ExchangeUiState(state = UiState.Error())
                 return@launch
             }.firstOrNull() ?: run {
-                _uiState.value = ExchangeUiState(state = ScreenState.Error())
+                _uiState.value = ExchangeUiState(state = UiState.Error())
                 return@launch
             }
             _uiState.value = ExchangeUiState(
-                state = ScreenState.Success(
+                state = UiState.Success(
                     availableCurrencies = currenciesList.toImmutableList(),
                     topExchangeInputFieldUiState = ExchangeInputFieldUiState(
                         isSelectable = false,
@@ -60,14 +60,14 @@ class ExchangeViewModel @Inject constructor(
         }
     }
 
-    fun onAction(action: ExchangeUiAction) {
-        when (action) {
-            is ExchangeUiAction.TopAmountChanged -> onTopAmountChanged(action.amount)
-            is ExchangeUiAction.BottomAmountChanged -> onBottomAmountChanged(action.amount)
-            ExchangeUiAction.Swap -> onSwap()
-            ExchangeUiAction.ShowBottomSheet -> onShowBottomSheet()
-            ExchangeUiAction.HideBottomSheet -> onHideBottomSheet()
-            is ExchangeUiAction.CurrencySelected -> onCurrencySelected(action.currency)
+    fun onIntent(intent: ExchangeUiIntent) {
+        when (intent) {
+            is ExchangeUiIntent.TopAmountChanged -> onTopAmountChanged(intent.amount)
+            is ExchangeUiIntent.BottomAmountChanged -> onBottomAmountChanged(intent.amount)
+            ExchangeUiIntent.Swap -> onSwap()
+            ExchangeUiIntent.ShowBottomSheet -> onShowBottomSheet()
+            ExchangeUiIntent.HideBottomSheet -> onHideBottomSheet()
+            is ExchangeUiIntent.CurrencySelected -> onCurrencySelected(intent.currency)
         }
     }
 
@@ -111,9 +111,9 @@ class ExchangeViewModel @Inject constructor(
         }
     }
 
-    private fun updateSuccessUiState(block: (ScreenState.Success) -> ScreenState.Success) {
+    private fun updateSuccessUiState(block: (UiState.Success) -> UiState.Success) {
         _uiState.update { uiState ->
-            val success = uiState.state as? ScreenState.Success ?: return@update uiState
+            val success = uiState.state as? UiState.Success ?: return@update uiState
             uiState.copy(state = block(success))
         }
     }
