@@ -8,8 +8,4 @@ data class TickerResponse(
     @SerializedName("bid") val bid: BigDecimal,
     @SerializedName("book") val book: String,
     @SerializedName("date") val date: String
-) {
-    // "usdc_mxn" → "MXN"
-    val currencyCode: String
-        get() = book.substringAfterLast("_").uppercase()
-}
+)

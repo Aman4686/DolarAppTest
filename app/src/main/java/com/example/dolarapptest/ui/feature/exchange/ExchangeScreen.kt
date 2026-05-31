@@ -26,8 +26,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.Scaffold
+import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +48,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.dolarapptest.ui.components.LoadingScreen
 import com.example.dolarapptest.ui.components.OverlayLoading
+import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiEffect
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiIntent
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.ExchangeInputFieldUiState
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.UiState
@@ -64,17 +68,26 @@ fun ExchangeScreen(
 ) {
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    LaunchedEffect(viewModel) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is ExchangeUiEffect.ShowToast ->
+                    Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     Scaffold(containerColor = ColorBackground) { padding ->
 
         when (val screenState = uiState.state) {
-            UiState.Loading ->
-                LoadingScreen(modifier = Modifier.padding(padding))
-
+            UiState.Loading -> {
+                //TODO handle fullscreen loading
+            }
             is UiState.Error -> {
                 //TODO handle error
             }
-
             is UiState.Success ->
                 Box {
                     ExchangeScreenView(

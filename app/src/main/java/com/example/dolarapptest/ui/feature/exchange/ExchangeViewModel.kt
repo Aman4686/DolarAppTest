@@ -1,6 +1,6 @@
 package com.example.dolarapptest.ui.feature.exchange
 
-import android.util.Log
+import android.os.Message
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.dolarapptest.domain.model.Ticker
@@ -8,22 +8,24 @@ import com.example.dolarapptest.domain.usecase.ConvertFromBaseCurrencyUseCase
 import com.example.dolarapptest.domain.usecase.ConvertToBaseCurrencyUseCase
 import com.example.dolarapptest.domain.usecase.GetCurrenciesUseCase
 import com.example.dolarapptest.domain.usecase.GetTickersUseCase
+import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiEffect
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiIntent
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.ExchangeInputFieldUiState
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.UiState
+import com.example.dolarapptest.domain.model.RateType
 import com.example.dolarapptest.ui.feature.exchange.state.FieldPosition
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-private val TAG: String = "ExchangeViewModel"
 
 @HiltViewModel
 class ExchangeViewModel @Inject constructor(
@@ -32,14 +34,23 @@ class ExchangeViewModel @Inject constructor(
     private val convertFromBaseCurrencyUseCase: ConvertFromBaseCurrencyUseCase,
     private val convertToBaseCurrencyUseCase: ConvertToBaseCurrencyUseCase,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(ExchangeUiState(state = UiState.Loading))
+
+
+    private val _uiState = MutableStateFlow(ExchangeUiState(
+        showOverlayLoader = true,
+        state = UiState.Success.empty()
+    ))
     val uiState: StateFlow<ExchangeUiState> = _uiState.asStateFlow()
 
-    private val exceptionHandler = CoroutineExceptionHandler { _, _ ->
-        _uiState.value = ExchangeUiState(state = UiState.Error())
+    private val _effect = Channel<ExchangeUiEffect>(Channel.BUFFERED)
+    val effect = _effect.receiveAsFlow()
+
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        showErrorToast(throwable.message ?: "Something went wrong")
     }
 
     private var currentTicker: Ticker? = null
+    private var rateType: RateType = RateType.BID
 
     init {
         loadInitialState()
@@ -60,20 +71,17 @@ class ExchangeViewModel @Inject constructor(
                     currency = firstTicker.to.uppercase()
                 ),
                 baseCurrencyField = FieldPosition.TOP,
-                activeInputField = FieldPosition.TOP,
+                exchangeRate = getCurrentRate(RateType.BID)
             )
-            _uiState.value = ExchangeUiState(
-                state = initialSuccess.copy(
-                    exchangeRate = getCurrentRate(initialSuccess)
-                )
-            )
+
+            _uiState.value = ExchangeUiState(state = initialSuccess)
         }
     }
 
     fun onIntent(intent: ExchangeUiIntent) {
         when (intent) {
-            is ExchangeUiIntent.TopAmountChanged -> onTopAmountChanged(intent.amount)
-            is ExchangeUiIntent.BottomAmountChanged -> onBottomAmountChanged(intent.amount)
+            is ExchangeUiIntent.TopAmountChanged -> onAmountChanged(intent.amount, FieldPosition.TOP)
+            is ExchangeUiIntent.BottomAmountChanged -> onAmountChanged(intent.amount, FieldPosition.BOTTOM)
             ExchangeUiIntent.Swap -> onSwap()
             ExchangeUiIntent.ShowBottomSheet -> onShowBottomSheet()
             ExchangeUiIntent.HideBottomSheet -> onHideBottomSheet()
@@ -81,48 +89,45 @@ class ExchangeViewModel @Inject constructor(
         }
     }
 
-    private fun onTopAmountChanged(amount: String) {
-        val sanitized = amount.replace(" ", "")
-        if (exceedsMaxScale(sanitized)) return
-        updateSuccessUiState { state ->
-            val converted =
-                convertAmount(sanitized, isFromBase = state.baseCurrencyField == FieldPosition.TOP)
-                    ?: return@updateSuccessUiState state.copy(activeInputField = FieldPosition.TOP)
-            state.copy(
-                activeInputField = FieldPosition.TOP,
-                firstExchangeInputFieldUiState = state.firstExchangeInputFieldUiState.copy(amount = sanitized),
-                secondExchangeInputFieldUiState = state.secondExchangeInputFieldUiState.copy(amount = converted),
-            )
-        }
-    }
+    private fun onAmountChanged(amount: String, field: FieldPosition) {
+        val clearedAmount = amount.replace(" ", "")
+        if (exceedsMaxScale(clearedAmount)) return
 
-    private fun onBottomAmountChanged(amount: String) {
-        val sanitized = amount.replace(" ", "")
-        if (exceedsMaxScale(sanitized)) return
-        updateSuccessUiState { state ->
-            val converted = convertAmount(
-                sanitized,
-                isFromBase = state.baseCurrencyField == FieldPosition.BOTTOM
-            ) ?: return@updateSuccessUiState state.copy(activeInputField = FieldPosition.BOTTOM)
-
-            state.copy(
-                activeInputField = FieldPosition.BOTTOM,
-                secondExchangeInputFieldUiState = state.secondExchangeInputFieldUiState.copy(amount = sanitized),
-                firstExchangeInputFieldUiState = state.firstExchangeInputFieldUiState.copy(amount = converted),
-            )
+        updateSuccessUiState { success ->
+            if (clearedAmount.isEmpty()) {
+                return@updateSuccessUiState success.copy(
+                    firstExchangeInputFieldUiState = success.firstExchangeInputFieldUiState.copy(amount = ""),
+                    secondExchangeInputFieldUiState = success.secondExchangeInputFieldUiState.copy(amount = ""),
+                )
+            }
+            val isFromBase = success.baseCurrencyField == field
+            val converted = convertAmount(clearedAmount, isFromBase) ?: return
+            rateType = if (isFromBase) RateType.BID else RateType.ASK
+            if (field == FieldPosition.TOP) {
+                success.copy(
+                    firstExchangeInputFieldUiState = success.firstExchangeInputFieldUiState.copy(amount = clearedAmount),
+                    secondExchangeInputFieldUiState = success.secondExchangeInputFieldUiState.copy(amount = converted),
+                )
+            } else {
+                success.copy(
+                    firstExchangeInputFieldUiState = success.firstExchangeInputFieldUiState.copy(amount = converted),
+                    secondExchangeInputFieldUiState = success.secondExchangeInputFieldUiState.copy(amount = clearedAmount),
+                )
+            }
         }
     }
 
     private fun onSwap() {
-        updateSuccessUiState { state ->
-            val newBaseCurrencyField =
-                if (state.baseCurrencyField == FieldPosition.TOP) FieldPosition.BOTTOM else FieldPosition.TOP
-            val swapped = state.copy(
-                firstExchangeInputFieldUiState = state.secondExchangeInputFieldUiState,
-                secondExchangeInputFieldUiState = state.firstExchangeInputFieldUiState,
+        updateSuccessUiState { success ->
+            val newBaseCurrencyField = if (success.baseCurrencyField == FieldPosition.TOP) FieldPosition.BOTTOM else FieldPosition.TOP
+            rateType = if (rateType == RateType.BID) RateType.ASK else RateType.BID
+            val swapped = success.copy(
+                firstExchangeInputFieldUiState = success.secondExchangeInputFieldUiState,
+                secondExchangeInputFieldUiState = success.firstExchangeInputFieldUiState,
                 baseCurrencyField = newBaseCurrencyField,
+                exchangeRate = getCurrentRate(rateType),
             )
-            recalculateAmounts(  swapped.copy(exchangeRate = getCurrentRate(swapped)))
+            recalculateAmounts(swapped, rateType)
         }
     }
 
@@ -147,8 +152,8 @@ class ExchangeViewModel @Inject constructor(
 
             if (ticker != null) {
                 currentTicker = ticker
-                updateSuccessUiState { state ->
-                    recalculateAmounts(state).copy(exchangeRate = getCurrentRate(state))
+                updateSuccessUiState { success ->
+                    recalculateAmounts(success, rateType).copy(exchangeRate = getCurrentRate(rateType))
                 }
             } else {
                 // handle error
@@ -176,34 +181,38 @@ class ExchangeViewModel @Inject constructor(
             )
     }
 
-    private fun recalculateAmounts(state: UiState.Success): UiState.Success {
-        Log.d(TAG, "recalculateAmounts: ${state.baseCurrencyField}")
-        return if (state.baseCurrencyField == FieldPosition.TOP)
+    private fun recalculateAmounts(state: UiState.Success, rateType: RateType): UiState.Success {
+        return if (state.baseCurrencyField == FieldPosition.TOP) {
+            val topAmount = convertAmount(
+                state.firstExchangeInputFieldUiState.amount,
+                isFromBase = true,
+                rateType = rateType
+            ) ?: state.secondExchangeInputFieldUiState.amount
+
             state.copy(
                 secondExchangeInputFieldUiState = state.secondExchangeInputFieldUiState.copy(
-                    amount = convertAmount(
-                        state.firstExchangeInputFieldUiState.amount,
-                        isFromBase = true
-                    ) ?: state.secondExchangeInputFieldUiState.amount
+                    amount = topAmount
                 )
             )
-        else
+        }else {
+            val bottomAmount = convertAmount(
+                state.secondExchangeInputFieldUiState.amount,
+                isFromBase = true,
+                rateType = rateType
+            )
+                ?: state.firstExchangeInputFieldUiState.amount
+
             state.copy(
                 firstExchangeInputFieldUiState = state.firstExchangeInputFieldUiState.copy(
-                    amount = convertAmount(
-                        state.secondExchangeInputFieldUiState.amount,
-                        isFromBase = true
-                    ) ?: state.firstExchangeInputFieldUiState.amount
+                    amount = bottomAmount
                 )
             )
+        }
     }
 
-    private fun getCurrentRate(state: UiState.Success): String {
+    private fun getCurrentRate(rateType: RateType): String {
         val ticker = currentTicker ?: return ""
-        return if (state.activeInputField == state.baseCurrencyField)
-            ticker.bid.toPlainString()
-        else
-            ticker.ask.toPlainString()
+        return if (rateType == RateType.ASK) ticker.ask.toPlainString() else ticker.bid.toPlainString()
     }
 
     private fun exceedsMaxScale(amount: String, maxScale: Int = 8): Boolean {
@@ -211,14 +220,20 @@ class ExchangeViewModel @Inject constructor(
         return dotIndex != -1 && amount.length - dotIndex - 1 > maxScale
     }
 
-    private fun convertAmount(amount: String, isFromBase: Boolean): String? {
-        Log.d(TAG, "convertAmount: ${amount} isFromBase ${isFromBase}")
+    private fun convertAmount(amount: String, isFromBase: Boolean, rateType: RateType = RateType.BID): String? {
         val ticker = currentTicker ?: return null
         val bigDecimal = amount.toBigDecimalOrNull() ?: return null
         return if (isFromBase)
-            convertFromBaseCurrencyUseCase(bigDecimal, ticker).toPlainString()
+            convertFromBaseCurrencyUseCase(bigDecimal, ticker, rateType).toPlainString()
         else
             convertToBaseCurrencyUseCase(bigDecimal, ticker).toPlainString()
+    }
+
+    private fun showErrorToast(message: String){
+        _effect.trySend(ExchangeUiEffect.ShowToast(message))
+        _uiState.update {
+            it.copy(showOverlayLoader = false)
+        }
     }
 
     private inline fun updateSuccessUiState(block: (UiState.Success) -> UiState.Success) {
