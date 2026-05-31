@@ -11,8 +11,8 @@ data class ExchangeUiState(
         data object Loading : UiState
         data class Error(val message: String = "") : UiState
         data class Success(
-            val topExchangeInputFieldUiState: ExchangeInputFieldUiState = ExchangeInputFieldUiState(),
-            val bottomExchangeInputFieldUiState: ExchangeInputFieldUiState = ExchangeInputFieldUiState(),
+            val firstExchangeInputFieldUiState: ExchangeInputFieldUiState = ExchangeInputFieldUiState(),
+            val secondExchangeInputFieldUiState: ExchangeInputFieldUiState = ExchangeInputFieldUiState(),
             val baseCurrencyField: FieldPosition = FieldPosition.TOP,
             val activeInputField: FieldPosition = FieldPosition.TOP,
             val rateLabel: String = "",
@@ -22,8 +22,8 @@ data class ExchangeUiState(
         ) : UiState {
             companion object {
                 fun preview() = Success(
-                    topExchangeInputFieldUiState = ExchangeInputFieldUiState(currency = "USD", amount = "100"),
-                    bottomExchangeInputFieldUiState = ExchangeInputFieldUiState(currency = "EUR", amount = "92.50"),
+                    firstExchangeInputFieldUiState = ExchangeInputFieldUiState(currency = "USD", amount = "100"),
+                    secondExchangeInputFieldUiState = ExchangeInputFieldUiState(currency = "EUR", amount = "92.50"),
                     baseCurrencyField = FieldPosition.TOP,
                     rateLabel = "1 USD = 0.925 EUR",
                     availableCurrencies = persistentListOf("USD", "EUR", "GBP", "JPY", "ARS")
@@ -38,4 +38,5 @@ data class ExchangeUiState(
     )
 }
 
+// TODO should add third state - NONE
 enum class FieldPosition { TOP, BOTTOM }

@@ -8,5 +8,5 @@ import javax.inject.Inject
 class ConvertToBaseCurrencyUseCase @Inject constructor() {
 
     operator fun invoke(amount: BigDecimal, ticker: Ticker): BigDecimal =
-        (amount / ticker.ask).setScale(2, RoundingMode.HALF_UP)
+        amount.divide(ticker.ask, 8, RoundingMode.HALF_UP)
 }

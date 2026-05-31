@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -71,7 +72,7 @@ fun ExchangeScreen(
                 LoadingScreen(modifier = Modifier.padding(padding))
 
             is UiState.Error -> {
-                //TODO
+                //TODO handle error
             }
 
             is UiState.Success ->
@@ -99,6 +100,8 @@ fun ExchangeScreenView(
     modifier: Modifier = Modifier,
     onIntent: (ExchangeUiIntent) -> Unit = {},
 ) {
+    val focusManager = LocalFocusManager.current
+
     Column(modifier) {
         Spacer(Modifier.height(24.dp))
 
@@ -107,9 +110,12 @@ fun ExchangeScreenView(
         Spacer(Modifier.height(24.dp))
 
         ExchangeInputComponent(
-            onSwapClicked = { onIntent(ExchangeUiIntent.Swap) },
-            topExchangeInputFieldUiState = uiState.topExchangeInputFieldUiState,
-            bottomExchangeInputFieldUiState = uiState.bottomExchangeInputFieldUiState,
+            onSwapClicked = {
+                focusManager.clearFocus()
+                onIntent(ExchangeUiIntent.Swap)
+            },
+            topExchangeInputFieldUiState = uiState.firstExchangeInputFieldUiState,
+            bottomExchangeInputFieldUiState = uiState.secondExchangeInputFieldUiState,
             baseCurrencyField = uiState.baseCurrencyField,
             onBottomExchangeInputFieldChanged = {
                 onIntent(
@@ -124,9 +130,9 @@ fun ExchangeScreenView(
 
         if (uiState.isShowBottomSheet) {
             val secondaryField = if (uiState.baseCurrencyField == FieldPosition.BOTTOM)
-                uiState.topExchangeInputFieldUiState
+                uiState.firstExchangeInputFieldUiState
             else
-                uiState.bottomExchangeInputFieldUiState
+                uiState.secondExchangeInputFieldUiState
 
             CurrencyPickerBottomSheet(
                 currencies = uiState.availableCurrencies,
