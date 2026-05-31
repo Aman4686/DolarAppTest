@@ -2,6 +2,7 @@ package com.example.dolarapptest.data.repository
 
 import com.example.dolarapptest.data.api.TickersApi
 import com.example.dolarapptest.data.mapper.toDomain
+import com.example.dolarapptest.data.model.Currency
 import com.example.dolarapptest.domain.di.IoDispatcher
 import com.example.dolarapptest.domain.model.Ticker
 import com.example.dolarapptest.domain.repository.TickersRepository
@@ -26,7 +27,7 @@ class TickersRepositoryImpl @Inject constructor(
         runCatching {
             api.getAvailableCurrencies()
         }.recoverCatching {
-            listOf("MXN", "ARS", "BRL", "COP")
+            Currency.entries.map { it.name }
         }
     }
 }

@@ -34,9 +34,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -74,7 +77,7 @@ fun ExchangeScreen(
         viewModel.effect.collect { effect ->
             when (effect) {
                 is ExchangeUiEffect.ShowToast ->
-                    Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, effect.messageRes, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -160,7 +163,7 @@ fun ExchangeScreenView(
 @Composable
 fun ExchangeTitleComponent(exchangeRate: String) {
     Text(
-        text = "Exchange",
+        text = stringResource(R.string.exchange_title),
         fontSize = 30.sp,
         fontWeight = FontWeight.Bold,
         color = ColorPrimaryText,
@@ -242,6 +245,15 @@ private fun MoneyInputField(
     }
 }
 
+private fun currencyFlagRes(currency: String): Int? = when (currency.uppercase()) {
+    "USDC" -> R.drawable.us_flag
+    "MXN" -> R.drawable.mxn_flag
+    "ARS" -> R.drawable.arg_flag
+    "BRL" -> R.drawable.brl_flag
+    "COP" -> R.drawable.cop_flag
+    else -> null
+}
+
 @Composable
 fun MoneyCurrency(
     currency: String = "BTC",
@@ -258,6 +270,16 @@ fun MoneyCurrency(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        currencyFlagRes(currency)?.let { flagRes ->
+            Image(
+                painter = painterResource(id = flagRes),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(16.dp)
+                    .clip(CircleShape),
+            )
+        }
         Text(
             text = currency,
             fontSize = 16.sp,
@@ -296,7 +318,7 @@ fun MoneyInputTextField(
             Box(contentAlignment = Alignment.CenterEnd) {
                 if (amount.isEmpty()) {
                     Text(
-                        text = "0",
+                        text = stringResource(R.string.amount_placeholder),
                         style = TextStyle(
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
@@ -326,7 +348,7 @@ private fun CurrencyPickerBottomSheet(
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
     ) {
         Text(
-            text = "Select currency",
+            text = stringResource(R.string.select_currency),
             fontSize = 24.sp,
             fontWeight = FontWeight.SemiBold,
             color = ColorPrimaryText,
@@ -396,8 +418,27 @@ private fun CurrencyCell(
             .height(62.dp)
             .clickable { onSelect() }
             .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFFF4F4F4)),
+            contentAlignment = Alignment.Center
+        ) {
+            currencyFlagRes(currency)?.let { flagRes ->
+                Image(
+                    painter = painterResource(id = flagRes),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape),
+                )
+            }
+        }
         Text(
             text = currency,
             fontSize = 16.sp,

@@ -1,7 +1,7 @@
 package com.example.dolarapptest.ui.feature.exchange
 
-import android.os.Message
 import androidx.lifecycle.ViewModel
+import com.example.dolarapptest.R
 import androidx.lifecycle.viewModelScope
 import com.example.dolarapptest.domain.model.Ticker
 import com.example.dolarapptest.domain.usecase.ConvertFromBaseCurrencyUseCase
@@ -46,7 +46,7 @@ class ExchangeViewModel @Inject constructor(
     val effect = _effect.receiveAsFlow()
 
     private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
-        showErrorToast(throwable.message ?: "Something went wrong")
+        showErrorToast(R.string.error_something_went_wrong)
     }
 
     private var currentTicker: Ticker? = null
@@ -229,8 +229,8 @@ class ExchangeViewModel @Inject constructor(
             convertToBaseCurrencyUseCase(bigDecimal, ticker).toPlainString()
     }
 
-    private fun showErrorToast(message: String){
-        _effect.trySend(ExchangeUiEffect.ShowToast(message))
+    private fun showErrorToast(@androidx.annotation.StringRes messageRes: Int) {
+        _effect.trySend(ExchangeUiEffect.ShowToast(messageRes))
         _uiState.update {
             it.copy(showOverlayLoader = false)
         }
