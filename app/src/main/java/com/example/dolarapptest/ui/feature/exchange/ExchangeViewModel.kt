@@ -1,5 +1,6 @@
 package com.example.dolarapptest.ui.feature.exchange
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.example.dolarapptest.R
 import androidx.lifecycle.viewModelScope
@@ -141,11 +142,18 @@ class ExchangeViewModel @Inject constructor(
 
     private fun onCurrencySelected(currency: String) {
         viewModelScope.launch(exceptionHandler) {
-            _uiState.update {
-                it.copy(
-                    showOverlayLoader = true,
-                    state = updateCurrencyInState(it.state, currency)
-                )
+            _uiState.update { it.copy(showOverlayLoader = true) }
+            updateSuccessUiState { success ->
+                if (success.baseCurrencyField == FieldPosition.BOTTOM)
+                    success.copy(
+                        firstExchangeInputFieldUiState = success.firstExchangeInputFieldUiState.copy(currency = currency),
+                        isShowBottomSheet = false
+                    )
+                else
+                    success.copy(
+                        secondExchangeInputFieldUiState = success.secondExchangeInputFieldUiState.copy(currency = currency),
+                        isShowBottomSheet = false
+                    )
             }
 
             val ticker = getTickersUseCase(listOf(currency)).getOrNull()?.firstOrNull()
@@ -161,24 +169,6 @@ class ExchangeViewModel @Inject constructor(
 
             _uiState.update { it.copy(showOverlayLoader = false) }
         }
-    }
-
-    private fun updateCurrencyInState(state: UiState, currency: String): UiState {
-        val success = state as? UiState.Success ?: return state
-        return if (success.baseCurrencyField == FieldPosition.BOTTOM)
-            success.copy(
-                firstExchangeInputFieldUiState = success.firstExchangeInputFieldUiState.copy(
-                    currency = currency
-                ),
-                isShowBottomSheet = false
-            )
-        else
-            success.copy(
-                secondExchangeInputFieldUiState = success.secondExchangeInputFieldUiState.copy(
-                    currency = currency
-                ),
-                isShowBottomSheet = false
-            )
     }
 
     private fun recalculateAmounts(state: UiState.Success, rateType: RateType): UiState.Success {
@@ -223,6 +213,7 @@ class ExchangeViewModel @Inject constructor(
     private fun convertAmount(amount: String, isFromBase: Boolean, rateType: RateType = RateType.BID): String? {
         val ticker = currentTicker ?: return null
         val bigDecimal = amount.toBigDecimalOrNull() ?: return null
+        Log.d("fsdfdsfdsf", "convertAmount: ${isFromBase}")
         return if (isFromBase)
             convertFromBaseCurrencyUseCase(bigDecimal, ticker, rateType).toPlainString()
         else
