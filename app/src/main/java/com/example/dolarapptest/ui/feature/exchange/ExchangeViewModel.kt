@@ -46,7 +46,7 @@ class ExchangeViewModel @Inject constructor(
     val effect = _effect.receiveAsFlow()
 
     private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
-        showErrorToast(R.string.error_something_went_wrong)
+        showErrorToast(ExchangeUiEffect.ShowToast.Res(R.string.error_something_went_wrong))
     }
 
     private var currentTicker: Ticker? = null
@@ -132,7 +132,11 @@ class ExchangeViewModel @Inject constructor(
     }
 
     private fun onShowBottomSheet() {
-        updateSuccessUiState { it.copy(isShowBottomSheet = true) }
+        updateSuccessUiState { success ->
+            if (success.availableCurrencies.isEmpty()) return
+
+            success.copy(isShowBottomSheet = true)
+        }
     }
 
     private fun onHideBottomSheet() {
@@ -163,7 +167,7 @@ class ExchangeViewModel @Inject constructor(
                     recalculateAmounts(success, rateType).copy(exchangeRate = getCurrentRate(rateType))
                 }
             } else {
-                // handle error
+                showErrorToast(ExchangeUiEffect.ShowToast.Text("Cant load new ticker"))
             }
 
             _uiState.update { it.copy(showOverlayLoader = false) }
@@ -218,8 +222,8 @@ class ExchangeViewModel @Inject constructor(
             convertToBaseCurrencyUseCase(bigDecimal, ticker).toPlainString()
     }
 
-    private fun showErrorToast(@androidx.annotation.StringRes messageRes: Int) {
-        _effect.trySend(ExchangeUiEffect.ShowToast(messageRes))
+    private fun showErrorToast(res :ExchangeUiEffect.ShowToast) {
+        _effect.trySend(res)
         _uiState.update {
             it.copy(showOverlayLoader = false)
         }

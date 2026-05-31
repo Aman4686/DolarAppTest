@@ -76,8 +76,10 @@ fun ExchangeScreen(
     LaunchedEffect(viewModel) {
         viewModel.effect.collect { effect ->
             when (effect) {
-                is ExchangeUiEffect.ShowToast ->
+                is ExchangeUiEffect.ShowToast.Res ->
                     Toast.makeText(context, effect.messageRes, Toast.LENGTH_SHORT).show()
+                is ExchangeUiEffect.ShowToast.Text ->
+                    Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
             }
         }
     }

@@ -97,7 +97,7 @@ class ExchangeViewModelTest {
 
         val effect = errorViewModel.effect.first()
 
-        assertEquals(ExchangeUiEffect.ShowToast(R.string.error_something_went_wrong), effect)
+        assertEquals(ExchangeUiEffect.ShowToast.Res(R.string.error_something_went_wrong), effect)
     }
 
     @Test
@@ -107,7 +107,7 @@ class ExchangeViewModelTest {
 
         val effect = errorViewModel.effect.first()
 
-        assertEquals(ExchangeUiEffect.ShowToast(R.string.error_something_went_wrong), effect)
+        assertEquals(ExchangeUiEffect.ShowToast.Res(R.string.error_something_went_wrong), effect)
     }
 
     // TopAmountChanged intent
