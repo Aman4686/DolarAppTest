@@ -1,6 +1,5 @@
 package com.example.dolarapptest.ui.feature.exchange
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.example.dolarapptest.R
 import androidx.lifecycle.viewModelScope
@@ -213,7 +212,6 @@ class ExchangeViewModel @Inject constructor(
     private fun convertAmount(amount: String, isFromBase: Boolean, rateType: RateType = RateType.BID): String? {
         val ticker = currentTicker ?: return null
         val bigDecimal = amount.toBigDecimalOrNull() ?: return null
-        Log.d("fsdfdsfdsf", "convertAmount: ${isFromBase}")
         return if (isFromBase)
             convertFromBaseCurrencyUseCase(bigDecimal, ticker, rateType).toPlainString()
         else
