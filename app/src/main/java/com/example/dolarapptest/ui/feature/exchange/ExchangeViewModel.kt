@@ -205,7 +205,8 @@ class ExchangeViewModel @Inject constructor(
 
     private fun getCurrentRate(rateType: RateType): String {
         val ticker = currentTicker ?: return ""
-        return if (rateType == RateType.ASK) ticker.ask.toPlainString() else ticker.bid.toPlainString()
+        val rate = if (rateType == RateType.ASK) ticker.ask.toPlainString() else ticker.bid.toPlainString()
+        return "1 ${ticker.from.uppercase()} = $rate ${ticker.to.uppercase()}"
     }
 
     private fun exceedsMaxScale(amount: String, maxScale: Int = 8): Boolean {

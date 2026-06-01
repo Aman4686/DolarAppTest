@@ -81,7 +81,7 @@ class ExchangeViewModelTest {
         assertEquals(currencies, state.availableCurrencies)
         assertEquals("USDC", state.firstExchangeInputFieldUiState.currency)
         assertEquals("MXN", state.secondExchangeInputFieldUiState.currency)
-        assertEquals(ticker.bid.toPlainString(), state.exchangeRate)
+        assertEquals("1 ${ticker.from.uppercase()} = ${ticker.bid.toPlainString()} ${ticker.to.uppercase()}", state.exchangeRate)
         assertEquals(FieldPosition.TOP, state.baseCurrencyField)
     }
 
@@ -203,7 +203,7 @@ class ExchangeViewModelTest {
         viewModel.onIntent(ExchangeUiIntent.Swap)
 
         val state = viewModel.uiState.value.state as UiState.Success
-        assertEquals(ticker.ask.toPlainString(), state.exchangeRate)
+        assertEquals("1 ${ticker.from.uppercase()} = ${ticker.ask.toPlainString()} ${ticker.to.uppercase()}", state.exchangeRate)
     }
 
     @Test
@@ -259,7 +259,7 @@ class ExchangeViewModelTest {
         viewModel.onIntent(ExchangeUiIntent.CurrencySelected("ARS"))
 
         val state = viewModel.uiState.value.state as UiState.Success
-        assertEquals(arsTickerResponse.bid.toPlainString(), state.exchangeRate)
+        assertEquals("1 ${arsTickerResponse.from.uppercase()} = ${arsTickerResponse.bid.toPlainString()} ${arsTickerResponse.to.uppercase()}", state.exchangeRate)
     }
 
     @Test
