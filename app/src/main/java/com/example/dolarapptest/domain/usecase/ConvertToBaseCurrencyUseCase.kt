@@ -9,6 +9,17 @@ import javax.inject.Inject
 
 class ConvertToBaseCurrencyUseCase @Inject constructor() {
 
-    operator fun invoke(amount: BigDecimal, ticker: Ticker, rateType: RateType = RateType.ASK): BigDecimal =
-        amount.divide(if (rateType == RateType.BID) ticker.bid else ticker.ask, AMOUNT_SCALE, RoundingMode.HALF_UP)
+    operator fun invoke(
+        amount: BigDecimal,
+        ticker: Ticker,
+        rateType: RateType = RateType.ASK,
+        scale: Int = AMOUNT_SCALE,
+    ): BigDecimal {
+        val tickerRate = if (rateType == RateType.BID) ticker.bid else ticker.ask
+        return amount.divide(
+            tickerRate,
+            scale,
+            RoundingMode.HALF_UP
+        )
+    }
 }

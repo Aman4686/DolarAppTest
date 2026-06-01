@@ -13,6 +13,7 @@ import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiIntent
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.ExchangeInputFieldUiState
 import com.example.dolarapptest.ui.feature.exchange.state.ExchangeUiState.UiState
+import com.example.dolarapptest.domain.AMOUNT_SCALE
 import com.example.dolarapptest.domain.model.RateType
 import com.example.dolarapptest.ui.feature.exchange.state.FieldPosition
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -90,7 +91,7 @@ class ExchangeViewModel @Inject constructor(
     }
 
     private fun onAmountChanged(amount: String, field: FieldPosition) {
-        val clearedAmount = amount.replace(" ", "")
+        val clearedAmount = amount.replace(" ", "").replace(",", "")
         if (exceedsMaxScale(clearedAmount)) return
 
         updateSuccessUiState { success ->
@@ -101,17 +102,19 @@ class ExchangeViewModel @Inject constructor(
                 )
             }
             val isFromBase = success.baseCurrencyField == field
+            val targetField = if (field == FieldPosition.TOP) success.secondExchangeInputFieldUiState else success.firstExchangeInputFieldUiState
+            val resultScale = scaleForCurrency(targetField.currency)
 
-            val converted = convertAmount(clearedAmount, isFromBase, rateType) ?: return
+            val converted = convertAmount(clearedAmount, isFromBase, rateType, resultScale) ?: return
             if (field == FieldPosition.TOP) {
                 success.copy(
-                    firstExchangeInputFieldUiState = success.firstExchangeInputFieldUiState.copy(amount = clearedAmount),
+                    firstExchangeInputFieldUiState = success.firstExchangeInputFieldUiState.copy(amount = formatWithCommas(clearedAmount)),
                     secondExchangeInputFieldUiState = success.secondExchangeInputFieldUiState.copy(amount = converted),
                 )
             } else {
                 success.copy(
                     firstExchangeInputFieldUiState = success.firstExchangeInputFieldUiState.copy(amount = converted),
-                    secondExchangeInputFieldUiState = success.secondExchangeInputFieldUiState.copy(amount = clearedAmount),
+                    secondExchangeInputFieldUiState = success.secondExchangeInputFieldUiState.copy(amount = formatWithCommas(clearedAmount)),
                 )
             }
         }
@@ -176,29 +179,28 @@ class ExchangeViewModel @Inject constructor(
 
     private fun recalculateAmounts(state: UiState.Success, rateType: RateType): UiState.Success {
         return if (state.baseCurrencyField == FieldPosition.TOP) {
-            val topAmount = convertAmount(
+            val scale = scaleForCurrency(state.secondExchangeInputFieldUiState.currency)
+            val converted = convertAmount(
                 state.firstExchangeInputFieldUiState.amount,
                 isFromBase = true,
-                rateType = rateType
+                rateType = rateType,
+                scale = scale
             ) ?: state.secondExchangeInputFieldUiState.amount
 
             state.copy(
-                secondExchangeInputFieldUiState = state.secondExchangeInputFieldUiState.copy(
-                    amount = topAmount
-                )
+                secondExchangeInputFieldUiState = state.secondExchangeInputFieldUiState.copy(amount = converted)
             )
-        }else {
-            val bottomAmount = convertAmount(
+        } else {
+            val scale = scaleForCurrency(state.firstExchangeInputFieldUiState.currency)
+            val converted = convertAmount(
                 state.secondExchangeInputFieldUiState.amount,
                 isFromBase = true,
-                rateType = rateType
-            )
-                ?: state.firstExchangeInputFieldUiState.amount
+                rateType = rateType,
+                scale = scale
+            ) ?: state.firstExchangeInputFieldUiState.amount
 
             state.copy(
-                firstExchangeInputFieldUiState = state.firstExchangeInputFieldUiState.copy(
-                    amount = bottomAmount
-                )
+                firstExchangeInputFieldUiState = state.firstExchangeInputFieldUiState.copy(amount = converted)
             )
         }
     }
@@ -210,17 +212,32 @@ class ExchangeViewModel @Inject constructor(
     }
 
     private fun exceedsMaxScale(amount: String, maxScale: Int = 8): Boolean {
-        val dotIndex = amount.indexOf('.')
-        return dotIndex != -1 && amount.length - dotIndex - 1 > maxScale
+        val clean = amount.replace(",", "")
+        val dotIndex = clean.indexOf('.')
+        return dotIndex != -1 && clean.length - dotIndex - 1 > maxScale
     }
 
-    private fun convertAmount(amount: String, isFromBase: Boolean, rateType: RateType = RateType.BID): String? {
+    private fun convertAmount(amount: String, isFromBase: Boolean, rateType: RateType = RateType.BID, scale: Int = AMOUNT_SCALE): String? {
         val ticker = currentTicker ?: return null
-        val bigDecimal = amount.toBigDecimalOrNull() ?: return null
-        return if (isFromBase)
-            convertFromBaseCurrencyUseCase(bigDecimal, ticker, rateType).toPlainString()
+        val bigDecimal = amount.replace(",", "").toBigDecimalOrNull() ?: return null
+        val result = if (isFromBase)
+            convertFromBaseCurrencyUseCase(bigDecimal, ticker, rateType, scale).toPlainString()
         else
-            convertToBaseCurrencyUseCase(bigDecimal, ticker, rateType).toPlainString()
+            convertToBaseCurrencyUseCase(bigDecimal, ticker, rateType, scale).toPlainString()
+        return formatWithCommas(result)
+    }
+
+    private fun scaleForCurrency(currency: String) =
+        if (currency.uppercase() == "USDC") 0 else AMOUNT_SCALE
+
+    private fun formatWithCommas(amount: String): String {
+        if (amount.isEmpty()) return amount
+        val dotIndex = amount.indexOf('.')
+        val intPart = if (dotIndex >= 0) amount.substring(0, dotIndex) else amount
+        val decPart = if (dotIndex >= 0) amount.substring(dotIndex) else ""
+        if (intPart.isEmpty()) return amount
+        val formattedInt = intPart.reversed().chunked(3).joinToString(",").reversed()
+        return formattedInt + decPart
     }
 
     private fun showErrorToast(res :ExchangeUiEffect.ShowToast) {

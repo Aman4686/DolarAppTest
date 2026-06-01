@@ -1,3 +1,3 @@
 package com.example.dolarapptest.domain
 
-const val AMOUNT_SCALE = 8
+const val AMOUNT_SCALE = 2

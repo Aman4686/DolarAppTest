@@ -118,7 +118,7 @@ class ExchangeViewModelTest {
 
         val state = viewModel.uiState.value.state as UiState.Success
         assertEquals("100", state.firstExchangeInputFieldUiState.amount)
-        assertEquals("1840.00000000", state.secondExchangeInputFieldUiState.amount)
+        assertEquals("1,840.00", state.secondExchangeInputFieldUiState.amount)
     }
 
     @Test
@@ -150,12 +150,14 @@ class ExchangeViewModelTest {
     // BottomAmountChanged intent
 
     @Test
-    fun `BottomAmountChanged converts amount using ask rate and updates top field`() {
+    fun `BottomAmountChanged formats typed amount with commas and converts to top field with no decimals`() {
         viewModel.onIntent(ExchangeUiIntent.BottomAmountChanged("1850"))
 
         val state = viewModel.uiState.value.state as UiState.Success
-        assertEquals("1850", state.secondExchangeInputFieldUiState.amount)
-        assertEquals("100.00000000", state.firstExchangeInputFieldUiState.amount)
+        // typed BOTTOM field gets comma-formatted
+        assertEquals("1,850", state.secondExchangeInputFieldUiState.amount)
+        // TOP (USDC) result uses scale=0: 1850 / bid(18.40) = 100.54… → 101
+        assertEquals("101", state.firstExchangeInputFieldUiState.amount)
     }
 
     @Test
