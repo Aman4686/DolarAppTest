@@ -101,8 +101,8 @@ class ExchangeViewModel @Inject constructor(
                 )
             }
             val isFromBase = success.baseCurrencyField == field
-            val converted = convertAmount(clearedAmount, isFromBase) ?: return
-            rateType = if (isFromBase) RateType.BID else RateType.ASK
+
+            val converted = convertAmount(clearedAmount, isFromBase, rateType) ?: return
             if (field == FieldPosition.TOP) {
                 success.copy(
                     firstExchangeInputFieldUiState = success.firstExchangeInputFieldUiState.copy(amount = clearedAmount),
@@ -219,7 +219,7 @@ class ExchangeViewModel @Inject constructor(
         return if (isFromBase)
             convertFromBaseCurrencyUseCase(bigDecimal, ticker, rateType).toPlainString()
         else
-            convertToBaseCurrencyUseCase(bigDecimal, ticker).toPlainString()
+            convertToBaseCurrencyUseCase(bigDecimal, ticker, rateType).toPlainString()
     }
 
     private fun showErrorToast(res :ExchangeUiEffect.ShowToast) {
